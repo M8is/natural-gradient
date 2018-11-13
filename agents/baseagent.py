@@ -1,26 +1,27 @@
 class BaseAgent:
-    def __init__(self, algorithm, env):
-        self._algorithm = algorithm
+    def __init__(self, model, env):
+        self._model = model
         self._env = env
 
-    def __call__(self, observation):
-        return self._algorithm(observation)
+    def __call__(self, observation, log_prob=False):
+        return self._model(observation, log_prob)
 
     def _generate_trajectory(self, render=False):
         done = False
         traj = {'observation': [],
                 'action': [],
-                'reward': []}
+                'reward': [],
+                'log_prob': []}
 
         obs = self._env.reset()
         while not done:
-            action = self(obs)
-            action = action.detach().numpy()
+            action, log_prob = self(obs, True)
 
             traj['observation'].append(obs)
             traj['action'].append(action)
+            traj['log_prob'].append(log_prob)
 
-            obs, reward, done, _ = self._env.step(action)
+            obs, reward, done, _ = self._env.step(action.detach().numpy())
 
             traj['reward'].append(reward)
 

@@ -8,13 +8,17 @@ class Linear(nn.Module):
         super().__init__()
 
         self.linear = nn.Linear(obs_space[0], act_space[0])
-        self.sigma = torch.randn(act_space)
+        self.sigma = torch.ones(act_space, requires_grad=True)
 
     def forward(self, s):
         s = torch.Tensor(s)
         x = self.linear(s)
 
-        return torch.normal(x, self.sigma)
+        N = torch.distributions.normal.Normal(x, self.sigma)
+
+        a = N.sample()
+        log_prob = N.log_prob(a)
+        return a, log_prob  # torch.normal(x, self.sigma), N.log_prob()
 
 
 if __name__ == '__main__':

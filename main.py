@@ -12,7 +12,4 @@ env = gym.make('CartpoleStabShort-v0')
 policy = NPG(env.observation_space.shape, env.action_space.shape, Linear)
 agent = NPGAgent(policy, env)
 
-traj = agent._generate_trajectories(3)
-print(traj[0]['action'])
-print(traj[1]['action'])
-print(traj[2]['action'])
+agent.train_episode(3)
