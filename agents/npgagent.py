@@ -25,22 +25,37 @@ class NPGAgent(BaseAgent):
             grads.append([])
             for i in range(len(trajectory['action'])):
                 grads[-1].append(torch.autograd.grad(trajectory['log_prob'][i], params, retain_graph=True, create_graph=True))
-        # print(grads)
 
         # TODO Compute advantages
-        rewards = []
+        v = []
         for i in range(len(trajectories)):
-            rewards.append(np.sum(trajectories[i]['reward']))
+            vtemp = []
+            trajectory = trajectories[i]
+            for j in range(len(trajectory['reward'])):
+                r = 0
+                for t in range(j, len(trajectory['reward'])):
+                    r += trajectory['reward'][t]
+                vtemp.append(r)
+            v.append(vtemp)
+
+        Q = 1  # TODO implement Q-value
 
         advantages = []
         for i in range(len(trajectories)):
-            advantages.append(np.mean(trajectories[i]['reward']))
+            advantages.append(v[i][0] - Q)
         #print(rewards)
-        #print(advantages)
+        # print(advantages)
 
         # TODO Compute Policy Gradient
-        # pol_grad =
+        pol_grad = 1
+        # pol_grad = sum(grads * advantages) / len(trajectories)
 
         # TODO Compute Fisher
+        F = [(grads[i][0] * np.transpose(grads[i][0])) for i in range(len(trajectories))]
+        F = sum(F) / len(trajectories)
+        # print(F)
 
-        # TODO Update Parameters
+        # TODO Gradient Ascent
+        # params = params + torch.sqrt(delta / ())
+
+        # TODO Update Parameters of V
