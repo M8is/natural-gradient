@@ -1,57 +1,65 @@
-import numpy as np
-from numpy import math
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
+import numpy as np
 
 
 class ActorCritic(torch.nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(ActorCritic, self).__init__()
+        super().__init__()
 
-        self.add_module('actor', Actor(input_dim, output_dim))
-        self.add_module('critic', Critic(input_dim, output_dim))
+        self.actor = Actor(input_dim, output_dim)
+        self.critic = Critic(input_dim, output_dim)
 
         self.train()
 
     def forward(self, x):
-        return self.actor(x)
+        policy = self.actor(x)
+        action = policy.sample()
+        return action, policy, self.critic(x, action)
 
 
 class Actor(torch.nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
 
-        self.mean = nn.Parameter(torch.zeros(output_dim), requires_grad=True)
-        self.covariance = nn.Parameter(torch.ones(output_dim, output_dim))
+        self.state_dim = input_dim
+        self.action_dim = output_dim
 
-        self.register_parameter('mean', self.mean)
-        self.register_parameter('covariance', self.covariance)
+        self.fc1 = nn.Linear(self.state_dim, 64)
+        self.fc2 = nn.Linear(64, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, 2 * self.action_dim)
 
-        self.optimizer = torch.optim.Adam(self.parameters())
-
-        self.m = torch.distributions.MultivariateNormal(self.mean, self.covariance)
+        self.net = nn.Sequential(
+            self.fc1,
+            self.fc2,
+            self.fc3,
+            self.fc4
+        )
 
     def forward(self, x):
-        return self.m.rsample()
+        net_out = self.net(x)
 
-    def backward(self, loss):
-        self.optimizer.zero_grad()
-        self.optimizer.step()
+        loc = net_out[:self.action_dim]
+        covariance = torch.diag(net_out[self.action_dim:]) * torch.diag(net_out[self.action_dim:]).t()
+        return torch.distributions.MultivariateNormal(loc, covariance)
 
 
 class Critic(torch.nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
 
-        self.critic_linear = nn.Linear(input_dim + output_dim, 1, bias=True)
+        self.fc1 = nn.Linear(input_dim + output_dim, 64)
+        self.fc2 = nn.Linear(64, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, 1)
 
-        self.register_parameter('critic_linear', self.critic_linear)
+        self.net = nn.Sequential(
+            self.fc1,
+            self.fc2,
+            self.fc3,
+            self.fc4
+        )
 
-        self.train()
-
-    def forward(self, x):
-        return self.critic_linear(x)
-
-    def backward(self, loss):
-        self.critic_linear.backward()
+    def forward(self, x, u):
+        return self.net(torch.cat((x, u)))
