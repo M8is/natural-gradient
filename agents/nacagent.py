@@ -5,58 +5,59 @@ from .baseagent import BaseAgent
 
 
 class NACAgent(BaseAgent):
-    def __init__(self, model, env, discount_rate=0.99, learning_rate=1e-3):
+    def __init__(self, model, env, gamma=0.99, lambda_=1e-3, alpha=1e-3, tao=1, beta=0.1):
         super().__init__(model, env)
 
-        self.policy_optimizer = torch.optim.Adam(list(model.actor.parameters()), lr=1e-5)
-        self.value_optimizer = torch.optim.Adam(list(model.critic.parameters()), lr=1e-3)
-        self.discount_rate = discount_rate
-        self.lr = learning_rate
+        self.beta = beta
+        self.tao = tao
+        self.alpha = alpha
+        self.gamma = gamma
+        self.lambda_ = lambda_
 
-        self.loss_function = torch.nn.MSELoss()
-
-    def train_episode(self, render=False, max_length=200):
+    def train_episode(self, render=False):
         done = False
-        obs = self._env.reset()
+        x = self._env.reset()
 
-        actions = []
-        critic_values = []
-        actor_losses = []
-        accumulated_rewards = []
+        w_history = list()
 
-        for _ in range(max_length):
-            if done:
-                break
+        A = b = 0
+        z = torch.zeros(len(self._model.actor.parameters()))
 
-            action, policy, critic_value = self(torch.tensor(obs))
-            critic_values.append(critic_value)
+        while not done:
+            u, policy = self(torch.tensor(x))
 
-            actions.append(action)
+            x1, r, done, _ = self._env.step(u.detach().numpy())
 
-            obs, reward, done, _ = self._env.step(action.detach().numpy())
-            reward = torch.from_numpy(np.array(reward))
-            accumulated_reward = accumulated_rewards[-1] * self.discount_rate + reward if accumulated_rewards else reward
+            phi = self._model.critic(x1)
 
-            actor_losses.append(-policy.log_prob(action) * critic_value)
-            accumulated_rewards.append(accumulated_reward)
+            phi_t = phi.unsqueeze(1)
+            phi_h = torch.stack((phi, grad_theta))
+
+            z = self.lambda_ * z + phi_h
+            A = A + z * (phi_h - self.gamma * phi_t).t()
+            b = b + z * r
+
+            update = A.inv() * b
+
+            w, v = update
+
+            if angle_between(w, w_history[-self.tao]) < np.finfo(float).eps:
+                theta = theta + self.alpha * w
+                z = self.beta * z
+                A = self.beta * A
+                b = self.beta * b
+
+            x = x1
 
             if render:
                 self._env.render()
 
-        accumulated_rewards = torch.stack(accumulated_rewards)
-        critic_values = torch.cat(critic_values)
 
-        value_loss = self.loss_function(critic_values, accumulated_rewards)
-        policy_loss = torch.stack(actor_losses).sum()
+#  source: https://stackoverflow.com/a/13849249
+def unit_vector(vector):
+    return vector / np.linalg.norm(vector)
 
-        self.value_optimizer.zero_grad()
-        self.policy_optimizer.zero_grad()
-        (value_loss + policy_loss).backward()
-        self.value_optimizer.step()
-        self.policy_optimizer.step()
-
-        # advantage = accumulated_rewards - critic_values
-        # for param in self._model.actor.parameters():
-        #   param.data = param.data + self.lr * advantage * param.data.grad
-
-        return policy_loss, value_loss
+def angle_between(v1, v2):
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))

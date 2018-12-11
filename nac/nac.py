@@ -8,14 +8,14 @@ class ActorCritic(torch.nn.Module):
         super().__init__()
 
         self.actor = Actor(input_dim, output_dim)
-        self.critic = Critic(input_dim, output_dim)
+        self.critic = Critic(input_dim)
 
         self.train()
 
     def forward(self, x):
         policy = self.actor(x)
         action = policy.sample()
-        return action, policy, self.critic(x, action)
+        return action, policy
 
 
 class Actor(torch.nn.Module):
@@ -44,8 +44,7 @@ class Actor(torch.nn.Module):
 
         self.cov_head = nn.Sequential(
             self._hidden,
-            nn.Linear(64, self.action_dim),
-            #nn.ReLU()
+            nn.Linear(64, self.action_dim)
         )
 
     def forward(self, x):
@@ -55,20 +54,12 @@ class Actor(torch.nn.Module):
 
 
 class Critic(torch.nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim):
         super().__init__()
 
-        self.fc1 = nn.Linear(input_dim + output_dim, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 1)
-
         self.net = nn.Sequential(
-            self.fc1,
-            self.fc2,
-            self.fc3,
-            self.fc4
+            nn.Linear(input_dim, 1)
         )
 
-    def forward(self, x, u):
-        return self.net(torch.cat((x, u)))
+    def forward(self, x):
+        return self.net(x)
