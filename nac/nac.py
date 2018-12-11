@@ -22,27 +22,36 @@ class Actor(torch.nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
 
+        self.distribution = torch.distributions.MultivariateNormal if output_dim > 1 else torch.distributions.Normal
+
         self.state_dim = input_dim
         self.action_dim = output_dim
 
         self.fc1 = nn.Linear(self.state_dim, 64)
         self.fc2 = nn.Linear(64, 128)
         self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 2 * self.action_dim)
 
-        self.net = nn.Sequential(
+        self._hidden = nn.Sequential(
             self.fc1,
             self.fc2,
-            self.fc3,
-            self.fc4
+            self.fc3
+        )
+
+        self.mean_head = nn.Sequential(
+            self._hidden,
+            nn.Linear(64, self.action_dim)
+        )
+
+        self.cov_head = nn.Sequential(
+            self._hidden,
+            nn.Linear(64, self.action_dim),
+            #nn.ReLU()
         )
 
     def forward(self, x):
-        net_out = self.net(x)
-
-        loc = net_out[:self.action_dim]
-        covariance = torch.diag(net_out[self.action_dim:]) * torch.diag(net_out[self.action_dim:]).t()
-        return torch.distributions.MultivariateNormal(loc, covariance)
+        loc = self.mean_head(x)
+        covariance = self.cov_head(x)
+        return self.distribution(loc, covariance)
 
 
 class Critic(torch.nn.Module):

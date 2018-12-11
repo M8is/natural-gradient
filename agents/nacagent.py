@@ -8,8 +8,8 @@ class NACAgent(BaseAgent):
     def __init__(self, model, env, discount_rate=0.99, learning_rate=1e-3):
         super().__init__(model, env)
 
-        self.policy_optimizer = torch.optim.Adam(list(model.actor.parameters()), lr=1e-3)
-        self.value_optimizer = torch.optim.Adam(list(model.critic.parameters()), lr=5e-3)
+        self.policy_optimizer = torch.optim.Adam(list(model.actor.parameters()), lr=1e-5)
+        self.value_optimizer = torch.optim.Adam(list(model.critic.parameters()), lr=1e-3)
         self.discount_rate = discount_rate
         self.lr = learning_rate
 
@@ -45,14 +45,14 @@ class NACAgent(BaseAgent):
 
         accumulated_rewards = torch.stack(accumulated_rewards)
         critic_values = torch.cat(critic_values)
-        value_loss = self.loss_function(critic_values, accumulated_rewards)
-        self.value_optimizer.zero_grad()
-        value_loss.backward(retain_graph=True)
-        self.value_optimizer.step()
 
+        value_loss = self.loss_function(critic_values, accumulated_rewards)
         policy_loss = torch.stack(actor_losses).sum()
+
+        self.value_optimizer.zero_grad()
         self.policy_optimizer.zero_grad()
-        policy_loss.backward()
+        (value_loss + policy_loss).backward()
+        self.value_optimizer.step()
         self.policy_optimizer.step()
 
         # advantage = accumulated_rewards - critic_values

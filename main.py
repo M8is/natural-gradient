@@ -11,7 +11,7 @@ import quanser_robots
 
 from matplotlib import pyplot as plt
 
-env = gym.make('CartpoleSwingShort-v0')
+env = gym.make('CartpoleStabShort-v0')
 
 #policy = NPG(env.observation_space.shape, env.action_space.shape, Linear)
 #agent = NPGAgent(policy, env)
