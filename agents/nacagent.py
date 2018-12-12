@@ -16,22 +16,24 @@ class NACAgent(BaseAgent):
 
     def train_episode(self, render=False):
         done = False
-        x = self._env.reset()
+        x = torch.tensor(self._env.reset())
 
         w_history = list()
 
         A = b = 0
-        z = torch.zeros(len(self._model.actor.parameters()))
+        z = torch.zeros(2)
 
         while not done:
-            u, policy = self(torch.tensor(x))
+            policy = self(torch.tensor(x))
+            u = policy.sample()
+            log_prob = policy.log_prob(u)
 
             x1, r, done, _ = self._env.step(u.detach().numpy())
+            phi = torch.tensor(x1, requires_grad=True)
 
-            phi = self._model.critic(x1)
-
-            phi_t = phi.unsqueeze(1)
-            phi_h = torch.stack((phi, grad_theta))
+            grad_theta = torch.autograd.grad(log_prob, self._model.actor.theta)[0]
+            phi_t = torch.stack([phi, torch.zeros_like(phi)])
+            phi_h = torch.stack([phi, grad_theta])
 
             z = self.lambda_ * z + phi_h
             A = A + z * (phi_h - self.gamma * phi_t).t()
