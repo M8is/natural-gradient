@@ -29,9 +29,23 @@ try:
 except KeyboardInterrupt:
     print("Interrupted.")
 
-f, (ax1, ax2) = plt.subplots(2, 1, sharex='all')
+torch.save(model, 'nac_lstd_model.pt')
 
+plt.ion()
+plt.show()
+
+f, (ax1, ax2) = plt.subplots(2, 1, sharex='all')
 ax1.set_title('Theta delta')
 ax1.plot(agent.theta_deltas)
 
-plt.show()
+plt.draw()
+plt.pause(0.05)
+
+while True:
+    done = False
+    x = env.reset()
+    while not done:
+        env.render()
+        policy = model(torch.tensor(x))
+        u = policy.sample()
+        x, r, done, _ = env.step(u.detach().numpy())
