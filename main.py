@@ -22,31 +22,16 @@ env = gym.make('CartpoleStabShort-v0')
 model = ActorCritic(env.observation_space.shape[0], env.action_space.shape[0])
 agent = NACAgent(model, env)
 
-actor_losses = []
-critic_losses = []
+theta_deltas = []
 render = False
 try:
-    for i in range(1000000):
-        print('.', end='', flush=True)
-
-        actor_loss, critic_loss = agent.train_episode(render=render)
-        actor_losses.append(actor_loss.detach().numpy())
-        critic_losses.append(critic_loss.detach().numpy())
-
-        if i > 0 and not i % 100:
-            print()
-            print(str(i) + ', actor: ' + str(actor_loss.item()) + ', critic: ' + str(critic_loss.item()))
-            render = True
-        else:
-            render = False
+    agent.train(render=render)
 except KeyboardInterrupt:
     print("Interrupted.")
 
 f, (ax1, ax2) = plt.subplots(2, 1, sharex='all')
 
-ax1.set_title('Actor loss')
-ax1.plot(actor_losses)
-ax2.set_title('Critic loss')
-ax2.plot(critic_losses)
+ax1.set_title('Theta delta')
+ax1.plot(agent.theta_deltas)
 
 plt.show()

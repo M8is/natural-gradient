@@ -5,7 +5,7 @@ from .baseagent import BaseAgent
 
 
 class NACAgent(BaseAgent):
-    def __init__(self, model, env, gamma=0.99, lambda_=1e-3, alpha=1e-3, tao=1, beta=0.1):
+    def __init__(self, model, env, gamma=0.99, lambda_=0.4, alpha=0.99, tao=1, beta=1e-50, eps=1e-5):
         super().__init__(model, env)
 
         self.beta = beta
@@ -13,51 +13,79 @@ class NACAgent(BaseAgent):
         self.alpha = alpha
         self.gamma = gamma
         self.lambda_ = lambda_
+        self.eps = eps
 
-    def train_episode(self, render=False):
-        done = False
-        x = torch.tensor(self._env.reset())
+        self.theta_deltas = []
 
+    def train(self, render=False):
+        dim_theta = len(self._model.actor.theta())
+        dim_phi = self._model.actor.state_dim
         w_history = list()
 
-        A = b = 0
-        z = torch.zeros(2)
+        b = z = np.zeros(dim_phi + dim_theta)
+        A = np.zeros((dim_phi + dim_theta, dim_phi + dim_theta))
 
-        while not done:
-            policy = self(torch.tensor(x))
+        x0 = self._env.reset()
+        phi = x0
+
+        theta_before = self._model.actor.theta()
+        theta_delta = float('+inf')
+
+        while True or theta_delta > self.eps:
+            policy = self(torch.tensor(phi))
             u = policy.sample()
             log_prob = policy.log_prob(u)
 
             x1, r, done, _ = self._env.step(u.detach().numpy())
-            phi = torch.tensor(x1, requires_grad=True)
+            phi1 = x1
 
-            grad_theta = torch.autograd.grad(log_prob, self._model.actor.theta)[0]
-            phi_t = torch.stack([phi, torch.zeros_like(phi)])
-            phi_h = torch.stack([phi, grad_theta])
+            flattened_grads = [grad.numpy().flatten() for grad in torch.autograd.grad(log_prob, self._model.actor.parameters())]
+            grad_theta = np.concatenate(flattened_grads)
+            phi_tilde = np.concatenate([phi1, np.zeros_like(grad_theta)])
+            phi_hat = np.concatenate([phi, grad_theta])
 
-            z = self.lambda_ * z + phi_h
-            A = A + z * (phi_h - self.gamma * phi_t).t()
+            z = self.lambda_ * z + phi_hat
+            A = A + z * (phi_hat - self.gamma * phi_tilde).T
             b = b + z * r
 
-            update = A.inv() * b
+            update = np.linalg.pinv(A) @ b
 
-            w, v = update
+            w, v = update[:dim_theta], update[-dim_phi:]
 
-            if angle_between(w, w_history[-self.tao]) < np.finfo(float).eps:
-                theta = theta + self.alpha * w
+            self._model.critic.weights = v
+            w_change = angle_between(w, w_history[-self.tao]) if len(w_history) >= self.tao else float('+inf')
+            if w_change < self.eps:
+                new_theta = self._model.actor.theta() + self.alpha * w
+                self._model.actor.set_theta(new_theta)
+
                 z = self.beta * z
                 A = self.beta * A
                 b = self.beta * b
 
-            x = x1
+                w_history = list()
+
+                theta_after = self._model.actor.theta()
+                theta_delta = np.linalg.norm(theta_after - theta_before)
+                self.theta_deltas.append(theta_delta)
+                print(theta_delta)
+
+                x0 = self._env.reset()
+                phi1 = x0
+
+                theta_before = self._model.actor.theta()
+            else:
+                w_history.append(w)
+
+            phi = phi1
 
             if render:
                 self._env.render()
 
 
-#  source: https://stackoverflow.com/a/13849249
+# source: https://stackoverflow.com/a/13849249
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
+
 
 def angle_between(v1, v2):
     v1_u = unit_vector(v1)
