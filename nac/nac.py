@@ -24,7 +24,8 @@ class Actor(torch.nn.Module):
         self.action_dim = action_dim
 
         self._hidden = torch.nn.Sequential(
-            torch.nn.Linear(self.state_dim, 8)
+            torch.nn.Linear(self.state_dim, 16),
+            torch.nn.Linear(16, 8)
         )
         self.mean_head = torch.nn.Sequential(
             self._hidden,
@@ -32,9 +33,7 @@ class Actor(torch.nn.Module):
         )
         self.cov_head = torch.nn.Sequential(
             self._hidden,
-            torch.nn.Linear(8, 4),
-            torch.nn.ReLU(),
-            torch.nn.Linear(4, self.action_dim)
+            torch.nn.Linear(8, self.action_dim)
         )
 
     def theta(self):
@@ -46,12 +45,10 @@ class Actor(torch.nn.Module):
             new_theta = new_theta[param.numel():]
             param.data = torch.FloatTensor(values.reshape(param.size()))
 
-
-
     def forward(self, x):
         loc_weights = self.mean_head(x)
         cov_weights = self.cov_head(x)
-        covariance_matrix = cov_weights * cov_weights.unsqueeze(-1).t()
+        covariance_matrix = torch.diag(torch.exp(cov_weights))
         return torch.distributions.MultivariateNormal(loc_weights, covariance_matrix=covariance_matrix)
 
 

@@ -23,7 +23,7 @@ model = ActorCritic(env.observation_space.shape[0], env.action_space.shape[0])
 agent = NACAgent(model, env)
 
 theta_deltas = []
-render = False
+render = True
 try:
     agent.train(render=render)
 except KeyboardInterrupt:
