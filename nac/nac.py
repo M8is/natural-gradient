@@ -20,21 +20,11 @@ class Actor(torch.nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
 
-        self.state_dim = state_dim
+        self.state_dim = int(state_dim * (state_dim + 1) / 2) + 1  # number of quadratic features
         self.action_dim = action_dim
 
-        self._hidden = torch.nn.Sequential(
-            torch.nn.Linear(self.state_dim, 16),
-            torch.nn.Linear(16, 8)
-        )
-        self.mean_head = torch.nn.Sequential(
-            self._hidden,
-            torch.nn.Linear(8, self.action_dim)
-        )
-        self.cov_head = torch.nn.Sequential(
-            self._hidden,
-            torch.nn.Linear(8, self.action_dim)
-        )
+        self.K = torch.nn.Parameter(torch.zeros(self.action_dim, self.state_dim))
+        self.Xi = torch.nn.Parameter(torch.zeros(self.action_dim, self.state_dim))
 
     def theta(self):
         return np.concatenate([param.detach().numpy().flatten() for param in self.parameters()])
@@ -46,10 +36,9 @@ class Actor(torch.nn.Module):
             param.data = torch.FloatTensor(values.reshape(param.size()))
 
     def forward(self, x):
-        loc_weights = self.mean_head(x)
-        cov_weights = self.cov_head(x)
-        covariance_matrix = torch.diag(torch.exp(cov_weights))
-        return torch.distributions.MultivariateNormal(loc_weights, covariance_matrix=covariance_matrix)
+        mean = torch.diag(self.K @ x)
+        covariance = torch.diag(0.1 + (1 / 1 + torch.exp(self.Xi @ x)))
+        return torch.distributions.MultivariateNormal(mean, covariance_matrix=covariance)
 
 
 class Critic(torch.nn.Module):

@@ -1,7 +1,7 @@
 import torch
 
 from agents.npgagent import NPGAgent
-from agents.nacagent import NACAgent
+from agents.nacagent import NACAgent, phi
 from npg.npg import NPG
 from nac.nac import ActorCritic
 from npg.models.linear import Linear
@@ -38,6 +38,9 @@ f, (ax1, ax2) = plt.subplots(2, 1, sharex='all')
 ax1.set_title('Theta delta')
 ax1.plot(agent.theta_deltas)
 
+ax2.set_title('Performance')
+ax2.plot(agent.performances)
+
 plt.draw()
 plt.pause(0.05)
 
@@ -46,6 +49,6 @@ while True:
     x = env.reset()
     while not done:
         env.render()
-        policy = model(torch.tensor(x))
+        policy = model(torch.FloatTensor(phi(x)))
         u = policy.sample()
         x, r, done, _ = env.step(u.detach().numpy())
