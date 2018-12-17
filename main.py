@@ -11,7 +11,7 @@ import quanser_robots
 
 from matplotlib import pyplot as plt
 
-env = gym.make('CartpoleStabShort-v0')
+env = gym.make('CartpoleSwingShort-v0')
 
 #policy = NPG(env.observation_space.shape, env.action_space.shape, Linear)
 #agent = NPGAgent(policy, env)
@@ -23,7 +23,7 @@ model = ActorCritic(env.observation_space.shape[0], env.action_space.shape[0])
 agent = NACAgent(model, env)
 
 theta_deltas = []
-render = True
+render = False
 try:
     agent.train(render=render)
 except KeyboardInterrupt:

@@ -5,7 +5,7 @@ from .baseagent import BaseAgent
 
 
 class NACAgent(BaseAgent):
-    def __init__(self, model, env, gamma=1., lambda_=1., alpha=1e-2, h=0, beta=0., eps=1e-10):
+    def __init__(self, model, env, gamma=.99, lambda_=.99, alpha=5e-1, h=10, beta=0., eps=np.pi/180):
         super().__init__(model, env)
 
         self.beta = beta
@@ -20,7 +20,7 @@ class NACAgent(BaseAgent):
 
     def train(self, render=False):
         dim_theta = len(self._model.actor.theta())
-        dim_phi = self._model.actor.state_dim
+        dim_phi = self._model.actor.phi_dim
 
         w_history = list()
 
@@ -31,19 +31,18 @@ class NACAgent(BaseAgent):
 
         theta_before = self._model.actor.theta()
         theta_after = theta_before
-        theta_delta = float('+inf')
 
         i = 0
+        t = 0
         done = False
         accu_r = 0
-        while i < 2000:
+        while True:
             if done:
                 self.performances.append(accu_r)
                 print(str(i) + ", R: " + str(accu_r))
                 accu_r = 0
                 i += 1
                 phi_x = phi(self._env.reset())
-                z = self.beta * z
 
                 theta_delta = np.linalg.norm(theta_after - theta_before)
                 print("->: " + str(theta_delta))
@@ -58,9 +57,12 @@ class NACAgent(BaseAgent):
             log_prob = policy.log_prob(u)
 
             x1, r, done, _ = self._env.step(u.detach().numpy())
-            phi_x1 = np.array(phi(x1))
+            phi_x1 = phi(x1)
 
-            accu_r += r
+            t += 1
+            done = done
+
+            accu_r = self.gamma * accu_r + r
 
             autograd = torch.autograd.grad(log_prob, self._model.actor.parameters())
             flattened_grads = [grad.numpy().flatten() for grad in autograd]
@@ -82,14 +84,14 @@ class NACAgent(BaseAgent):
             for tao in range(1, self.h + 1):
                 tao += 1
                 w_change = angle_between(w, w_history[-tao]) if len(w_history) >= tao else float('+inf')
-                print(w_change)
                 natural_gradient_converged = natural_gradient_converged and w_change < self.eps
 
             if natural_gradient_converged:
-                new_theta = self._model.actor.theta() + self.alpha * w
+                new_theta = self._model.actor.theta() + (self.alpha / (t * 5e-2)) * w
                 self._model.actor.set_theta(new_theta)
 
                 z, A, b = self.beta * z, self.beta * A, self.beta * b
+                t = 0
 
                 w_history = list()
 
@@ -102,7 +104,7 @@ class NACAgent(BaseAgent):
 
 def phi(x):
     A = np.outer(x, x)
-    return np.concatenate((A[np.triu_indices(len(x))], np.ones(1)))
+    return np.concatenate((A[np.triu_indices(len(x))], x, np.ones(1)))
 
 
 # source: https://stackoverflow.com/a/13849249
