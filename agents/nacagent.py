@@ -5,7 +5,7 @@ from .baseagent import BaseAgent
 
 
 class NACAgent(BaseAgent):
-    def __init__(self, model, env, gamma=.99, lambda_=.99, alpha=5e-1, h=10, beta=0., eps=np.pi/180):
+    def __init__(self, model, env, gamma=.95, lambda_=1., alpha=1e-3, h=10, beta=0., eps=np.pi/180):
         super().__init__(model, env)
 
         self.beta = beta
@@ -87,7 +87,7 @@ class NACAgent(BaseAgent):
                 natural_gradient_converged = natural_gradient_converged and w_change < self.eps
 
             if natural_gradient_converged:
-                new_theta = self._model.actor.theta() + (self.alpha / (t * 5e-2)) * w
+                new_theta = self._model.actor.theta() + self.alpha * w
                 self._model.actor.set_theta(new_theta)
 
                 z, A, b = self.beta * z, self.beta * A, self.beta * b
