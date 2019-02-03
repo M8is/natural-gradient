@@ -5,7 +5,8 @@ from .baseagent import BaseAgent
 
 
 class NACAgent(BaseAgent):
-    def __init__(self, model, env, gamma=1., lambda_=1., alpha=1e-2, alpha_decay=1e-4, h=1, beta=.0, eps=np.pi/180):
+    def __init__(self, model, env, gamma=1., lambda_=1., alpha=1e-1, alpha_decay=1e-10, h=1, beta=.0, eps=np.pi / 180,
+                 max_episodes=1000):
         super().__init__(model, env)
 
         self.beta = beta
@@ -15,13 +16,14 @@ class NACAgent(BaseAgent):
         self.gamma = gamma
         self.lambda_ = lambda_
         self.eps = eps
+        self.max_episodes = max_episodes
 
         self.theta_deltas = []
         self.performances = []
 
     def train(self, render=False):
         dim_theta = len(self._model.actor.theta())
-        dim_phi = self._model.actor.phi_dim
+        dim_phi = self._model.actor.state_dim
 
         w_history = list()
 
@@ -37,17 +39,17 @@ class NACAgent(BaseAgent):
         epochs = 0
         done = False
         accu_r = 0
-        while i < 500:
+        while i < self.max_episodes:
             if done:
                 self.performances.append(accu_r)
-                print(str(i) + ", R: " + str(accu_r))
+                print(str(i) + ", R: " + "{:.2f}".format(accu_r))
                 accu_r = 0
                 i += 1
                 phi_x = phi(self._env.reset())
 
                 theta_delta = np.linalg.norm(theta_after - theta_before)
                 if theta_delta:
-                    print("->: " + str(theta_delta))
+                    print("-> " + "{:.2E}".format(theta_delta))
                 self.theta_deltas.append(theta_delta)
                 theta_before = self._model.actor.theta()
 
@@ -73,17 +75,23 @@ class NACAgent(BaseAgent):
                 A = A + np.outer(z, (phi_hat - self.gamma * phi_tilde))
                 b = b + z * r
 
-                update = np.linalg.lstsq(A, b)[0]
+                if not np.linalg.matrix_rank(A) == len(b):
+                    update = np.linalg.lstsq(A, b, rcond=1e-7)[0]
+                else:
+                    update = np.linalg.solve(A, b)
 
                 w, v = update[:dim_theta], update[dim_theta:]
 
                 self._model.critic.weights = v
 
-                natural_gradient_converged = True
-                for tao in range(0, self.h):
-                    tao += 1
-                    w_change = angle_between(w, w_history[-tao]) if len(w_history) >= tao else float('+inf')
-                    natural_gradient_converged = natural_gradient_converged and w_change < self.eps
+                if len(w_history) < self.h:
+                    natural_gradient_converged = False
+                else:
+                    natural_gradient_converged = True
+                    for tao in range(1, self.h + 1):
+                        angle_converged = angle_between(w, w_history[-tao]) < self.eps
+                        approx_same = np.linalg.norm(w - w_history[-tao]) < np.finfo(float).eps
+                        natural_gradient_converged = (angle_converged or approx_same) and natural_gradient_converged
 
                 w_history.append(w)
 

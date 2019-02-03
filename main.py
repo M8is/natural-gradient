@@ -11,15 +11,17 @@ import quanser_robots
 
 from matplotlib import pyplot as plt
 
-env = gym.make('CartpoleStabShort-v0')
+env = gym.make('CartpoleSwingShort-v0')
 
 #policy = NPG(env.observation_space.shape, env.action_space.shape, Linear)
 #agent = NPGAgent(policy, env)
 
 #agent.train_episode(3)
 
+env_state_dim = env.observation_space.shape[0]
+phi_dim = int(env_state_dim * (env_state_dim + 1) / 2) + env_state_dim + 1  # number of quadratic features
 
-model = ActorCritic(env.observation_space.shape[0], env.action_space.shape[0])
+model = ActorCritic(phi_dim, env.action_space.shape[0])
 agent = NACAgent(model, env)
 
 theta_deltas = []

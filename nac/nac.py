@@ -20,11 +20,11 @@ class Actor(torch.nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
 
-        self.phi_dim = int(state_dim * (state_dim + 1) / 2) + state_dim + 1  # number of quadratic features
+        self.state_dim = state_dim
         self.action_dim = action_dim
 
-        self.K = torch.nn.Parameter(torch.zeros(self.action_dim, self.phi_dim))
-        # self.Xi = 0.1 * torch.nn.Parameter(torch.ones(self.action_dim, self.phi_dim))
+        self.K = torch.nn.Parameter(.5 * torch.ones(self.action_dim, self.state_dim))
+        self.Xi = torch.nn.Parameter(torch.ones(self.action_dim, self.state_dim))
 
     def theta(self):
         return np.concatenate([param.detach().numpy().flatten() for param in self.parameters()])
@@ -37,8 +37,7 @@ class Actor(torch.nn.Module):
 
     def forward(self, x):
         mean = self.K @ x
-        # covariance = torch.diag(0.1 + (1 / 1 + torch.exp(self.Xi @ x)))
-        covariance = 0.1 * torch.diag(torch.ones(self.action_dim))
+        covariance = torch.diag(torch.abs(self.Xi @ x) + np.finfo(float).eps)
         return torch.distributions.MultivariateNormal(mean, covariance_matrix=covariance)
 
 
