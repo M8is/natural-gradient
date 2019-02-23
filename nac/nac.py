@@ -1,11 +1,50 @@
-class NAC:
-    def __init__(self, o_space, a_space, model):
-        self.o_space = o_space
-        self.a_space = a_space
-        self.model = model(o_space, a_space)
+import numpy as np
+import torch
 
-    def __call__(self, o_space, log_prob=False):
-        if log_prob:
-            return self.model(o_space)
-        else:
-            return self.model(o_space)[0]
+
+class ActorCritic(torch.nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super().__init__()
+
+        self.actor = Actor(state_dim, action_dim)
+        self.critic = Critic(state_dim)
+
+        self.train()
+
+    def forward(self, x):
+        policy = self.actor(x)
+        return policy
+
+
+class Actor(torch.nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super().__init__()
+
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+
+        self.K = torch.nn.Parameter(.5 * torch.ones(self.action_dim, self.state_dim))
+        self.Xi = torch.nn.Parameter(torch.ones(self.action_dim, self.state_dim))
+
+    def theta(self):
+        return np.concatenate([param.detach().numpy().flatten() for param in self.parameters()])
+
+    def set_theta(self, new_theta):
+        for param in self.parameters():
+            values = new_theta[:param.numel()]
+            new_theta = new_theta[param.numel():]
+            param.data = torch.FloatTensor(values.reshape(param.size()))
+
+    def forward(self, x):
+        mean = self.K @ x
+        covariance = torch.diag(torch.abs(self.Xi @ x) + np.finfo(float).eps)
+        return torch.distributions.MultivariateNormal(mean, covariance_matrix=covariance)
+
+
+class Critic(torch.nn.Module):
+    def __init__(self, state_dim):
+        super().__init__()
+        self.weights = np.zeros(state_dim)
+
+    def forward(self, x):
+        return x.T * self.weights

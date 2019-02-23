@@ -1,66 +1,126 @@
-"""Implementation of Natural Actor Critic algorithm."""
-
+import numpy as np
+import torch
 
 from .baseagent import BaseAgent
-import torch
-from torch.distributions.normal import Normal
 
 
 class NACAgent(BaseAgent):
-    """NACAgent class."""
-
-    def __init__(self, model, env):
-        """Init model and enviornment."""
+    def __init__(self, model, env, gamma=1., lambda_=1., alpha=1e-1, alpha_decay=1e-10, h=1, beta=.0, eps=np.pi / 180,
+                 max_episodes=1000):
         super().__init__(model, env)
 
-    def phi(self, x):
-        """TODO: Basis function."""
-        return
+        self.beta = beta
+        self.h = h
+        self.alpha = alpha
+        self.alpha_decay = alpha_decay
+        self.gamma = gamma
+        self.lambda_ = lambda_
+        self.eps = eps
+        self.max_episodes = max_episodes
 
-    def train(self):
-        """Implementation skeleton for NAC algorithm."""
-        u_space = self._env.env.action_space.shape[0]
-        x_space = self._env.env.observation_space.shape[0]
+        self.theta_deltas = []
+        self.performances = []
 
-        # Input
-        policy = self._model  # mu(u|x) = p(u|x, theta)
-        params = list(self._model.model.parameters())  # theta = theta_0
-        gradpolicy = torch.autograd.grad(policy, params)  # dlog p(u|x, theta)
-        self.phi(self._env.env.xsp)
+    def train(self, render=False):
+        dim_theta = len(self._model.actor.theta())
+        dim_phi = self._model.actor.state_dim
 
-        # 1: Draw initial state
-        advantage = list()
-        advantage.append(0)  # A(t+1) = 0
+        w_history = list()
 
-        bias = list()
-        bias.append(0)  # b(t+1) = 0
+        b = z = np.zeros(dim_phi + dim_theta)
+        A = np.zeros((dim_phi + dim_theta, dim_phi + dim_theta))
 
-        z = list()
-        z.append(0)  # z(t+1) = 0
+        phi_x = phi(self._env.reset())
 
-        u_mean = torch.zeros(u_space)
-        x_mean = torch.zeros(x_space)
-        u_sigma = torch.ones(u_space, requires_grad=True)
-        x_sigma = torch.ones(x_space, requires_grad=True)
+        theta_before = self._model.actor.theta()
+        theta_after = theta_before
 
-        # x(0) ∼ p(x0)
-        # should x be drawn from rolling out?
-        u = Normal(u_mean, u_sigma).sample()
-        x = Normal(x_mean, x_sigma).sample()
+        i = 0
+        epochs = 0
+        done = False
+        accu_r = 0
+        while i < self.max_episodes:
+            if done:
+                self.performances.append(accu_r)
+                print(str(i) + ", R: " + "{:.2f}".format(accu_r))
+                accu_r = 0
+                i += 1
+                phi_x = phi(self._env.reset())
 
-        # Discrete time steps
-        t_max = 1000
-        for t in range(t_max):
-            # 3. Execute: Draw action u_t ∼ policy pi(u_t|x_t)
-            # x_next ∼ p(x_t+1|x_t, u_t),
-            # r = r(x, u)
+                theta_delta = np.linalg.norm(theta_after - theta_before)
+                if theta_delta:
+                    print("-> " + "{:.2E}".format(theta_delta))
+                self.theta_deltas.append(theta_delta)
+                theta_before = self._model.actor.theta()
 
-            # 4. Critic Evaluation
-            # assign basis functions
-            # set statistics
-            # assign critic parameters
+            if render:
+                self._env.render()
 
-            # 5. Actor
-            # Update policy parameters
-            # Forget statistics
-            pass
+            policy = self(torch.FloatTensor(phi_x))
+            u = policy.sample()
+            log_prob = policy.log_prob(u)
+
+            x1, r, done, _ = self._env.step(u.detach().numpy())
+            phi_x1 = phi(x1)
+
+            accu_r += r
+
+            autograd = torch.autograd.grad(log_prob, self._model.actor.parameters())
+            grad_theta = np.concatenate([grad.numpy().flatten() for grad in autograd])
+            phi_tilde = np.concatenate([phi_x1, np.zeros_like(grad_theta)])
+            phi_hat = np.concatenate([phi_x, grad_theta])
+
+            while True:
+                z = self.lambda_ * z + phi_hat
+                A = A + np.outer(z, (phi_hat - self.gamma * phi_tilde))
+                b = b + z * r
+
+                if not np.linalg.matrix_rank(A) == len(b):
+                    update = np.linalg.lstsq(A, b, rcond=1e-7)[0]
+                else:
+                    update = np.linalg.solve(A, b)
+
+                w, v = update[:dim_theta], update[dim_theta:]
+
+                self._model.critic.weights = v
+
+                if len(w_history) < self.h:
+                    natural_gradient_converged = False
+                else:
+                    natural_gradient_converged = True
+                    for tao in range(1, self.h + 1):
+                        angle_converged = angle_between(w, w_history[-tao]) < self.eps
+                        approx_same = np.linalg.norm(w - w_history[-tao]) < np.finfo(float).eps
+                        natural_gradient_converged = (angle_converged or approx_same) and natural_gradient_converged
+
+                w_history.append(w)
+
+                if natural_gradient_converged:
+                    learning_rate = self.alpha * np.exp(-self.alpha_decay * epochs)
+                    new_theta = self._model.actor.theta() + learning_rate * w
+                    self._model.actor.set_theta(new_theta)
+
+                    z, A, b = self.beta * z, self.beta * A, self.beta * b
+                    w_history = list()
+                    theta_after = self._model.actor.theta()
+                    epochs += 1
+
+                    break
+
+            phi_x = phi_x1
+
+
+def phi(x):
+    A = np.outer(x, x)
+    return np.concatenate((A[np.triu_indices(len(x))], x, np.ones(1)))
+
+
+# source: https://stackoverflow.com/a/13849249
+def unit_vector(vector):
+    return vector / np.linalg.norm(vector) if np.count_nonzero(vector) else vector
+
+
+def angle_between(v1, v2):
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))

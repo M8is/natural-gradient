@@ -4,7 +4,7 @@ class BaseAgent:
         self._env = env
 
     def __call__(self, observation, log_prob=False):
-        return self._model(observation, log_prob)
+        return self._model(observation, log_prob) if log_prob else self._model(observation)
 
     def _generate_trajectory(self, render=False):
         done = False
