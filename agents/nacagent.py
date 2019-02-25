@@ -5,8 +5,8 @@ from .baseagent import BaseAgent
 
 
 class NACAgent(BaseAgent):
-    def __init__(self, model, env, gamma=1., lambda_=1., alpha=1e-1, alpha_decay=1e-10, h=1, beta=.0, eps=np.pi / 180,
-                 max_episodes=1000):
+    def __init__(self, model, env, gamma=.995, lambda_=1., alpha=1., alpha_decay=.0, h=1, beta=.0, eps=np.pi / 180,
+                 max_episodes=500):
         super().__init__(model, env)
 
         self.beta = beta
@@ -23,14 +23,15 @@ class NACAgent(BaseAgent):
 
     def train(self, render=False):
         dim_theta = len(self._model.actor.theta())
-        dim_phi = self._model.actor.state_dim
+        dim_phi = self._model.critic.phi_dim
 
         w_history = list()
 
         b = z = np.zeros(dim_phi + dim_theta)
         A = np.zeros((dim_phi + dim_theta, dim_phi + dim_theta))
 
-        phi_x = phi(self._env.reset())
+        x = self._env.reset()
+        phi_x = phi(x)
 
         theta_before = self._model.actor.theta()
         theta_after = theta_before
@@ -45,7 +46,8 @@ class NACAgent(BaseAgent):
                 print(str(i) + ", R: " + "{:.2f}".format(accu_r))
                 accu_r = 0
                 i += 1
-                phi_x = phi(self._env.reset())
+                x = self._env.reset()
+                phi_x = phi(x)
 
                 theta_delta = np.linalg.norm(theta_after - theta_before)
                 if theta_delta:
@@ -56,7 +58,7 @@ class NACAgent(BaseAgent):
             if render:
                 self._env.render()
 
-            policy = self(torch.FloatTensor(phi_x))
+            policy = self(torch.FloatTensor(x))
             u = policy.sample()
             log_prob = policy.log_prob(u)
 
@@ -107,6 +109,7 @@ class NACAgent(BaseAgent):
 
                     break
 
+            x = x1
             phi_x = phi_x1
 
 

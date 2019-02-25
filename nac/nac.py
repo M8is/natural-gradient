@@ -3,11 +3,11 @@ import torch
 
 
 class ActorCritic(torch.nn.Module):
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim, critic_dim, action_dim):
         super().__init__()
 
         self.actor = Actor(state_dim, action_dim)
-        self.critic = Critic(state_dim)
+        self.critic = Critic(critic_dim)
 
         self.train()
 
@@ -42,9 +42,10 @@ class Actor(torch.nn.Module):
 
 
 class Critic(torch.nn.Module):
-    def __init__(self, state_dim):
+    def __init__(self, phi_dim):
         super().__init__()
-        self.weights = np.zeros(state_dim)
+        self.phi_dim = phi_dim
+        self.weights = np.zeros(phi_dim)
 
     def forward(self, x):
         return x.T * self.weights
