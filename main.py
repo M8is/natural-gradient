@@ -1,27 +1,26 @@
+import gym
+import numpy as np
 import torch
+from matplotlib import pyplot as plt
 
-from agents.npgagent import NPGAgent
+import quanser_robots
 from agents.nacagent import NACAgent, phi
-from npg.npg import NPG
+from agents.npgagent import NPGAgent
 from nac.nac import ActorCritic
 from npg.models.linear import Linear
+from npg.npg import NPG
 
-import gym
-import quanser_robots
-
-from matplotlib import pyplot as plt
+seed = 36364
+torch.manual_seed(seed)
+np.random.seed(seed)
 
 env = gym.make('CartpoleSwingShort-v0')
 
-#policy = NPG(env.observation_space.shape, env.action_space.shape, Linear)
-#agent = NPGAgent(policy, env)
-
-#agent.train_episode(3)
-
 env_state_dim = env.observation_space.shape[0]
-phi_dim = int(env_state_dim * (env_state_dim + 1) / 2) + env_state_dim + 1  # number of quadratic features
+phi_dim = int(env_state_dim * (env_state_dim + 1) /
+              2) + env_state_dim + 1  # number of quadratic features
 
-model = ActorCritic(phi_dim, env.action_space.shape[0])
+model = ActorCritic(env_state_dim, phi_dim, env.action_space.shape[0])
 agent = NACAgent(model, env)
 
 theta_deltas = []
@@ -51,6 +50,6 @@ while True:
     x = env.reset()
     while not done:
         env.render()
-        policy = model(torch.FloatTensor(phi(x)))
+        policy = model(torch.FloatTensor(x))
         u = policy.sample()
         x, r, done, _ = env.step(u.detach().numpy())
