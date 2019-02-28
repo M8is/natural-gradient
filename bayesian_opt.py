@@ -8,6 +8,7 @@ from nac.nac import ActorCritic
 from skopt.optimizer import gp_minimize
 from skopt.space import Real, Integer
 
+env = gym.make('CartpoleSwingShort-v0')
 model = None
 agent = None
 
@@ -29,9 +30,12 @@ try:
         model = ActorCritic(env_state_dim, phi_dim, env.action_space.shape[0])
         agent = NACAgent(model, env, gamma=gamma, lambda_=lambda_, alpha=alpha, beta=beta)
 
-        agent.train()
-
-        torch.save(model, '{}.pt'.format('_'.join([str(v) for v in params])))
+        try:
+            agent.train()
+            torch.save(model, 'models/{}.pt'.format('_'.join([str(v) for v in params])))
+        except Exception:
+            print("EXCEPTION")
+            return 0
 
         return -max(agent.performances)
 
