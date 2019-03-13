@@ -9,6 +9,7 @@ python3 -m venv env
 source env/bin/activate
 pip3 install -r requirements.txt
 ```
+NOTE: This requires `tkinter`, which can be installed on ubuntu by `apt-get install python3-tk`.
 
 ## Contents
 
