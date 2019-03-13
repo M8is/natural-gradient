@@ -11,9 +11,26 @@ from utils.vector_utils import angle_between
 def train(env: gym.Env, model: torch.nn.Module, phi: Callable[[np.ndarray], np.ndarray], render: bool, 
           gamma: float, lambda_: float, alpha: float, alpha_decay: float, h: int, 
           beta: float, eps: float, max_episodes: int):
+    """Perform a gradient-ascent policy optimization using the natural gradient and LSTD-Q
+    
+    Arguments:
+        env {gym.Env} -- Gym environment to train on.
+        model {torch.nn.Module} -- Actor/policy model.
+        phi {Callable[[np.ndarray], np.ndarray]} -- Maps observations of the environment to basic functions for the critic.
+        render {bool} -- If the environment should render during training. Will slow down training a lot.
+        gamma {float} -- Gamma value in [0,1).
+        lambda_ {float} -- Lambda value in [0,1].
+        alpha {float} -- Learning rate in (0,1].
+        alpha_decay {float} -- How much learning rate is decreasing over time. Should be in [0,1], 0 to disable completely.
+        h {int} -- How many gradient estimations must be within the angle eps to consider the gradient as converged.
+        beta {float} -- Forgetting factor, used for resetting the critic after a gradient step. Set to 0 to discard old statistics.
+        eps {float} -- Angle in gradients in which the last h gradient estimates must be to consider the gradient as converged.
+        max_episodes {int} -- Number of episodes after which the training stops and returns.
+    
+    Returns:
+        None -- nothing
     """
-        TODO: docstring
-    """
+
 
     dim_theta = model.theta().shape[0]
     dim_phi = phi(np.zeros(model.state_dim)).shape[0]
