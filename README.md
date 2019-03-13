@@ -2,6 +2,11 @@
 
 ## Installation
 
+System requirements:
+  - Python3.6
+  - python3-venv
+  - tkinter (python3-tk)
+
 All required python packages can be found in `requirements.txt`. Install using
 
 ```
