@@ -13,8 +13,7 @@ class LinearNormal(torch.nn.Module):
         self.Xi = torch.nn.Parameter(torch.ones(self.action_dim, self.state_dim))
 
         self.theta_history = []
-        self.discounted_returns = []
-        self.total_returns = []
+        self.returns = []
 
     def theta(self):
         return np.concatenate([param.detach().numpy().flatten() for param in self.parameters()])

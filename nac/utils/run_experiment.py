@@ -15,7 +15,7 @@ env = gym.make('Qube-v0')
 model = LinearNormal(env.state_dim.shape, env.action_space.shape)
 
 def phi(x):
-    A = np.outer(x, x)
+    A = np.multiply.outer(x, x)
     return np.concatenate((A[np.triu_indices(len(x))], x, np.ones(1)))
 
 gamma = .99
@@ -29,9 +29,8 @@ max_episodes: int = 1000
 render = False
 
 try:
-    train(env, model, phi, 
-          gamma=gamma, lambda_=lambda_, alpha=alpha, alpha_decay=alpha_decay,
-          h=h, beta=beta, eps=eps, max_episodes=max_episodes, render=render)
+    train(env, model, phi, render, gamma, lambda_, alpha, alpha_decay,
+          h, beta, eps, max_episodes)
 except KeyboardInterrupt:
     print("Interrupted.")
 
@@ -41,11 +40,12 @@ plt.ion()
 plt.show()
 
 f, (ax1, ax2) = plt.subplots(2, 1, sharex='all')
-ax1.set_title('Discounted Returns')
-ax1.plot(model.discounted_returns)
 
-ax2.set_title('Total Returns')
-ax2.plot(model.total_returns)
+ax1.set_title('Total Returns')
+ax1.plot(model.returns)
+
+ax2.set_title('Theta History')
+ax2.plot(model.theta_history)
 
 plt.draw()
 plt.pause(0.05)

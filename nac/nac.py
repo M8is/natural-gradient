@@ -8,14 +8,13 @@ from matplotlib import pyplot as plt
 from nac.utils.vector_utils import angle_between
 
 
-def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.array, np.array], render: bool = False, 
-          gamma: float = .99, lambda_: float = 1., alpha: float = .1, alpha_decay: float = .0, h: int = 1, 
-          beta: float = .0, eps: float = np.pi / 180, max_episodes: int = 1000):
+def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.ndarray, np.ndarray], render: bool, 
+          gamma: float, lambda_: float, alpha: float, alpha_decay: float, h: int, 
+          beta: float, eps: float, max_episodes: int):
     env_state_dim = env.observation_space.shape
-    phi_dim = phi(np.zeros_like(env_state_dim)).shape
 
-    dim_theta = len(model.theta())
-    dim_phi = model.phi_dim
+    dim_theta = model.theta().shape
+    dim_phi = phi(np.zeros_like(env_state_dim)).shape
 
     w_history = list()
 
@@ -36,9 +35,7 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.array, np.array
     gamma = 1
     while i < max_episodes:
         if done:
-            model.theta_history.append(new_theta)
-            model.discounted_returns.append(discounted_return)
-            model.total_returns.append(total_return)
+            model.returns.append(total_return)
 
             print(str(i) + ",dR: " + "{:.2E}".format(discounted_return))
             print(str(i) + ", R: " + "{:.2E}".format(total_return))
@@ -75,7 +72,7 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.array, np.array
         phi_hat = np.concatenate([phi_x, grad_theta])
 
         z = lambda_ * z + phi_hat
-        A = A + np.outer(z, (phi_hat - gamma * phi_tilde))
+        A = A + np.multiply.outer(z, (phi_hat - gamma * phi_tilde))
         b = b + z * r
 
         try:
@@ -103,6 +100,7 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.array, np.array
             learning_rate = alpha / (alpha_decay * epochs + 1)
             new_theta = model.theta() + learning_rate * w
             model.set_theta(new_theta)
+            model.theta_history.append(new_theta)
 
             z, A, b = beta * z, beta * A, beta * b
             w_history = list()
