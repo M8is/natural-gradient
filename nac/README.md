@@ -2,7 +2,13 @@
 
 ## Installation
 
-All required python packages can be found in `requirements.txt`.
+All required python packages can be found in `requirements.txt`. Install using
+
+```
+python3 -m venv env
+source env/bin/activate
+pip3 install -r requirements.txt
+```
 
 ## Contents
 
