@@ -9,11 +9,11 @@ import models
 import nac
 import quanser_robots
 
-seed = 36364
+seed = 9583951
 torch.manual_seed(seed)
 np.random.seed(seed)
 
-env = gym.make('CartpoleSwingShort-v0')
+env = gym.make('Qube-v0')
 model = None
 agent = None
 
@@ -29,17 +29,20 @@ alpha_decay = .0
 h = 1
 beta = .0
 eps = np.pi / 180
-max_episodes: int = 1000
+max_episodes = 1000
 
 dimensions = [
         Real(0., 1., name="gamma"),
         Real(0., 1., name="lambda"),
-        Real(.05, .5, name="alpha"),
-        Real(0., .1, name="alpha_decay")
+        Real(0., 1., name="alpha"),
+        Real(.0, .1, name="alpha_decay"),
+        Integer(1, 20, name="h"),
+        Real(0., 1., name="beta"),
+        Real(np.pi / 720., np.pi / 90., name="eps")
     ]
 
 def score(params):
-    gamma, lambda_, alpha, alpha_decay = params
+    gamma, lambda_, alpha, alpha_decay, h, beta, eps = params
     env = gym.make('Qube-v0')
 
     model = models.LinearNormal(env.observation_space.shape, env.action_space.shape)
