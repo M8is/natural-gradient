@@ -12,7 +12,7 @@ You can find the actual implementation in `nac.py`, and available models in `mod
 ## Usage and Examples
 
 This section contains usage descriptions and code examples.
-You can also find complete example usages of the interface in `utils/bayesian_opt.py` and `utils/run_experiment.py`.
+You can also find complete example usages of the interface in `bayesian_opt.py`, and `run_experiment.py`.
 
 ### Training
 For training use `nac.nac.train(...)`. Hyperparameters are directly passed to this function, and are explained in the docstring of that function. We do not repeat this documentation here to avoid inconsistency.
@@ -25,7 +25,7 @@ np.random.seed(seed)
 ```
 
 #### Running a saved model
-You can use `utils/run_model.py` to load and run a saved model `.pt` file.
+You can use `run_model.py` to load and run a saved model `.pt` file.
 
 ## Sources
  - Natural Actor-Critic https://homes.cs.washington.edu/~todorov/courses/amath579/reading/NaturalActorCritic.pdf

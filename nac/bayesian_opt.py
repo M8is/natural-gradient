@@ -5,8 +5,9 @@ from matplotlib import pyplot as plt
 from skopt.optimizer import gp_minimize
 from skopt.space import Integer, Real
 
-import quanser_robots
+import models
 import nac
+import quanser_robots
 
 seed = 36364
 torch.manual_seed(seed)
@@ -41,11 +42,11 @@ def score(params):
     gamma, lambda_, alpha, alpha_decay = params
     env = gym.make('Qube-v0')
 
-    model = nac.models.LinearNormal(env.state_dim.shape, env.action_space.shape)
+    model = models.LinearNormal(env.observation_space.shape, env.action_space.shape)
     model.exception = None
 
     try:
-        nac.nac.train(env, model, phi, False, gamma, lambda_, alpha, alpha_decay, h, beta, eps, max_episodes)
+        nac.train(env, model, phi, False, gamma, lambda_, alpha, alpha_decay, h, beta, eps, max_episodes)
     except Exception as e:
         print(repr(e))
         model.exception = repr(e)
@@ -53,11 +54,8 @@ def score(params):
     torch.save(model, 'models/{}.pt'.format(','.join([str(v) for v in params])))
 
     return -max(model.total_returns, default=0)
-try:
-    res = gp_minimize(score, dimensions)
-except KeyboardInterrupt:
-    print("Interrupted.")
 
+res = gp_minimize(score, dimensions)
 print(res.x)
 print(res.fun)
 print(np.argmin(res.func_vals))

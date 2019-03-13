@@ -5,18 +5,18 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-from nac.utils.vector_utils import angle_between
+from utils.vector_utils import angle_between
 
 
-def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.ndarray, np.ndarray], render: bool, 
+def train(env: gym.Env, model: torch.nn.Module, phi: Callable[[np.ndarray], np.ndarray], render: bool, 
           gamma: float, lambda_: float, alpha: float, alpha_decay: float, h: int, 
           beta: float, eps: float, max_episodes: int):
-    env_state_dim = env.observation_space.shape
+    """
+        TODO: docstring
+    """
 
-    dim_theta = model.theta().shape
-    dim_phi = phi(np.zeros_like(env_state_dim)).shape
-
-    w_history = list()
+    dim_theta = model.theta().shape[0]
+    dim_phi = phi(np.zeros(model.state_dim)).shape[0]
 
     b = z = np.zeros(dim_phi + dim_theta)
     A = np.zeros((dim_phi + dim_theta, dim_phi + dim_theta))
@@ -24,33 +24,19 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.ndarray, np.nda
     x = env.reset()
     phi_x = phi(x)
 
-    theta_before = model.theta()
-    new_theta = None
-
-    i = 0
+    episodes = 0
     epochs = 0
     done = False
-    discounted_return = 0
     total_return = 0
-    gamma = 1
-    while i < max_episodes:
+    w_history = list()
+    while episodes < max_episodes:
         if done:
             model.returns.append(total_return)
-
-            print(str(i) + ",dR: " + "{:.2E}".format(discounted_return))
-            print(str(i) + ", R: " + "{:.2E}".format(total_return))
-
-            theta_delta = np.linalg.norm(new_theta - theta_before)
-            if theta_delta:
-                print("-> " + "{:.2E}".format(theta_delta))
-            theta_before = new_theta
-
-            discounted_return = 0
+            print(str(episodes) + ", R: " + "{:.2E}".format(total_return))
             total_return = 0
-            i += 1
+            episodes += 1
             x = env.reset()
             phi_x = phi(x)
-
         if render:
             env.render()
 
@@ -60,10 +46,6 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.ndarray, np.nda
 
         x1, r, done, _ = env.step(u.detach().numpy())
         phi_x1 = phi(x1)
-
-        discounted_return += gamma * r
-        gamma *= gamma
-
         total_return += r
 
         autograd = torch.autograd.grad(log_prob, model.parameters())
@@ -77,7 +59,7 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.ndarray, np.nda
 
         try:
             if not np.linalg.matrix_rank(A) == len(b):
-                update = np.linalg.lstsq(A, b, rcond=1e-3)[0]
+                update = np.linalg.lstsq(A, b, rcond=None)[0]
             else:
                 update = np.linalg.solve(A, b)
         except np.linalg.LinAlgError:
@@ -97,16 +79,18 @@ def train(env: gym.Env, model: torch.nn.Module, phi: Callable[np.ndarray, np.nda
         w_history.append(w)
 
         if natural_gradient_converged:
+            old_theta = model.theta()
             learning_rate = alpha / (alpha_decay * epochs + 1)
             new_theta = model.theta() + learning_rate * w
             model.set_theta(new_theta)
             model.theta_history.append(new_theta)
 
+            theta_delta = np.linalg.norm(new_theta - old_theta)
+            print("-> " + "{:.2E}".format(theta_delta))
+
             z, A, b = beta * z, beta * A, beta * b
             w_history = list()
             epochs += 1
-            gamma = 1
-
 
         x = x1
         phi_x = phi_x1

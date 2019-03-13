@@ -2,7 +2,7 @@ import gym
 import torch
 
 import quanser_robots
-from nac import models
+import models
 
 env = gym.make('Qube-v0')
 model = torch.load("path/to/model.pt")
