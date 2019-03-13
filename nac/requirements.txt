@@ -1,0 +1,7 @@
+gym==0.11.0
+numpy==1.16.1
+-e git+https://git.ias.informatik.tu-darmstadt.de/quanser/clients.git@7619977f3dbeb6dbc21d5e4658eb65bab1b85f7c#egg=quanser_robots
+scikit-learn==0.20.2
+scikit-optimize==0.5.2
+scipy==1.2.1
+torch==1.0.1.post2
