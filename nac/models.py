@@ -9,8 +9,14 @@ class LinearNormal(torch.nn.Module):
         self.state_dim = observation_shape[0]
         self.action_dim = action_shape[0]
 
-        self.K = torch.nn.Parameter(.5 * torch.ones(self.action_dim, self.state_dim))
-        self.Xi = torch.nn.Parameter(torch.ones(self.action_dim, self.state_dim))
+        self.loc_net = torch.nn.Sequential(
+            torch.nn.Linear(self.state_dim, self.action_dim)
+        )
+
+        self.cov_net = torch.nn.Sequential(
+            torch.nn.Linear(self.state_dim, self.action_dim),
+            torch.nn.Softplus()
+        )
 
         self.theta_history = []
         self.returns = []
@@ -25,6 +31,6 @@ class LinearNormal(torch.nn.Module):
             param.data = torch.FloatTensor(values.reshape(param.size()))
 
     def forward(self, x):
-        mean = self.K @ x
-        covariance = torch.diag(torch.abs(self.Xi @ x) + np.finfo(float).eps)
-        return torch.distributions.MultivariateNormal(mean, covariance_matrix=covariance)
+        mean = self.loc_net(x)
+        cov = torch.diag(self.cov_net(x))
+        return torch.distributions.MultivariateNormal(mean, scale_tril=cov)

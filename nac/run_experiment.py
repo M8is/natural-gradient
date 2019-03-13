@@ -18,14 +18,14 @@ def phi(x):
     A = np.multiply.outer(x, x)
     return np.concatenate((A[np.triu_indices(len(x))], x, np.ones(1)))
 
-gamma = .9
-lambda_ = .9
-alpha = .5
-alpha_decay = .01
-h = 1
-beta = .01
+gamma = .95
+lambda_ = .4
+alpha = .2
+alpha_decay = .001
+h = 10
+beta = .001
 eps = np.pi / 180
-max_episodes: int = 100
+max_episodes = 10000
 render = False
 
 try:
@@ -39,7 +39,7 @@ torch.save(model, 'nac_lstd_model.pt')
 plt.ion()
 plt.show()
 
-f, (ax1, ax2) = plt.subplots(2, 1, sharex='all')
+f, (ax1, ax2) = plt.subplots(2, 1)
 
 ax1.set_title('Total Returns')
 ax1.plot(model.returns)
