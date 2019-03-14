@@ -1,3 +1,6 @@
+import sys
+from os import makedirs, path
+
 import gym
 import numpy as np
 import torch
@@ -9,9 +12,11 @@ import models
 import nac
 import quanser_robots
 
-seed = 9583951
-torch.manual_seed(seed)
-np.random.seed(seed)
+SEED = 9583951
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+
+MODELS_PATH = 'models'
 
 env = gym.make('Qube-v0')
 model = None
@@ -54,9 +59,14 @@ def score(params):
         print(repr(e))
         model.exception = repr(e)
     
-    torch.save(model, 'models/{}.pt'.format(','.join([str(v) for v in params])))
+    torch.save(model, path.join(MODELS_PATH, ','.join([str(v) for v in params]) + '.pt'))
 
-    return -max(model.total_returns, default=0)
+    return -max(model.returns, default=0)
+
+try:
+    makedirs(MODELS_PATH)
+except OSError:
+    sys.exit("Target directory already exists. Aborting...")
 
 res = gp_minimize(score, dimensions)
 print(res.x)
