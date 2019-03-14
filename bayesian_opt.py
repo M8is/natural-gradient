@@ -1,4 +1,5 @@
 import sys
+import time
 from os import makedirs, path
 
 import gym
@@ -16,7 +17,7 @@ SEED = 9583951
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-MODELS_PATH = 'models'
+MODELS_PATH = 'bo_saved_models_' + time.time()
 
 env = gym.make('Qube-v0')
 model = None
