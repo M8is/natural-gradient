@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-import quanser_robots
-from models import LinearNormal
 import nac
+import quanser_robots
+from models.linear_normal import LinearNormal
 
 seed = 36364
 torch.manual_seed(seed)
@@ -25,7 +25,7 @@ alpha_decay = .001
 h = 10
 beta = .001
 eps = np.pi / 180
-max_episodes = 10000
+max_episodes = 1000
 render = False
 
 try:

@@ -9,9 +9,9 @@ from matplotlib import pyplot as plt
 from skopt.optimizer import gp_minimize
 from skopt.space import Integer, Real
 
-import models
 import nac
 import quanser_robots
+from models.linear_normal import LinearNormal
 
 SEED = 9583951
 torch.manual_seed(SEED)
@@ -51,7 +51,7 @@ def score(params):
     gamma, lambda_, alpha, alpha_decay, h, beta, eps = params
     env = gym.make('Qube-v0')
 
-    model = models.LinearNormal(env.observation_space.shape, env.action_space.shape)
+    model = LinearNormal(env.observation_space.shape, env.action_space.shape)
     model.exception = None
 
     try:

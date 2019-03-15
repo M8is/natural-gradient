@@ -5,7 +5,7 @@ import quanser_robots
 import models
 
 env = gym.make('Qube-v0')
-model = torch.load("path/to/model.pt")
+model = torch.load("nac_lstd_model.pt")
 agent = None
 
 set_weights_of_iteration = -1
